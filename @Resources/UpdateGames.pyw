@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 import configparser
+import requests
 
 class CaseSensitiveConfigParser(configparser.ConfigParser):
     def optionxform(self, optionstr):
@@ -24,6 +25,20 @@ def get_variables(config_file):
     if 'Variables' in config:
         variables = dict(config['Variables'])
     return variables
+
+#__________________________________________________________________________________________________________________________#
+#-----------------------------------------Function to fetch data from Steam API--------------------------------------------#
+
+def get_steam_data(api_key, steam_id):
+    url = f"https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key={api_key}&steamid={steam_id}&format=json&include_played_free_games=1"
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json().get('response', {})
+            return data.get('games', [])
+    except Exception:
+        pass
+    return []
 
 #__________________________________________________________________________________________________________________________#
 #-------------------------------------Function to retrieve data from appmanifest files-------------------------------------#
@@ -244,7 +259,7 @@ image_path = steam_path + '/appcache/librarycache'
 game_dirs = variables.get('gamedirs', '')
 game_dirs = game_dirs.split(',')
 for i in range(len(game_dirs)):
-    game_dirs[i] = game_dirs[i].strip() + '\steamapps'
+    game_dirs[i] = game_dirs[i].strip() + r'\steamapps'
 locale = variables.get('locale', '').lower()
 RainmeterPath = variables.get('rainmeterexe', '')
 skinMode = variables.get('mode')
@@ -267,22 +282,44 @@ for game_dir in game_dirs:
     processed_ids_gamedir, games_info_gamedir = process_appmanifest_files(appmanifest_files, game_dir)
     processed_ids = processed_ids + processed_ids_gamedir 
     games_info = games_info + games_info_gamedir
-#appmanifest_files = [f for f in os.listdir(os.path.join(manifest_path)) if f.startswith('appmanifest_')]
-#processed_ids, games_info = process_appmanifest_files(appmanifest_files, manifest_path)
 
-# 3: Write new GamesInfo.inc
+# 3: Fetch API Data and Sort Games based on Sort Mode
+sort_mode = variables.get('sortmode', '0')
+api_key = variables.get('steamapikey', '')
+steam_id = variables.get('steamid', '')
+
+if sort_mode != '0' and api_key and steam_id:
+    status = "Fetching Steam API Data..."
+    update_rainmeter_status(status)
+    steam_games = get_steam_data(api_key, steam_id)
+    
+    steam_map = {str(g['appid']): {'playtime': g.get('playtime_forever', 0), 'last_played': g.get('rtime_last_played', 0)} for g in steam_games}
+
+    for game in games_info:
+        data = steam_map.get(game['appid'], {'playtime': 0, 'last_played': 0})
+        game['playtime'] = data['playtime']
+        game['last_played'] = data['last_played']
+
+    if sort_mode == '1': # Playtime
+        games_info.sort(key=lambda x: x.get('playtime', 0), reverse=True)
+        processed_ids = [g['appid'] for g in games_info]
+    elif sort_mode == '2': # Last Played
+        games_info.sort(key=lambda x: x.get('last_played', 0), reverse=True)
+        processed_ids = [g['appid'] for g in games_info]
+
+# 4: Write new GamesInfo.inc
 status = "Writing new GamesInfo.inc..."
 update_rainmeter_status(status)
 write_game_info(processed_ids, games_info)
 
-# 4: Set variables for meters creation
+# 5: Set variables for meters creation
 game_count = len(processed_ids)
 config_extra_games = CaseSensitiveConfigParser()
 config_extra_games.read('NonSteamGames.inc', encoding='utf-8')
 extra_games_count = int(config_extra_games.get('Variables', 'ExtraGamesCount', fallback='0'))
 #extra_games_count = int(config_extra_games['Variables']['ExtraGamesCount'])
 
-# 5: Create meters dynamically
+# 6: Create meters dynamically
 status = "Creating Dynamic Meters Files..."
 update_rainmeter_status(status)
 

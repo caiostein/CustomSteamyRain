@@ -6,24 +6,27 @@ GameDirs=C:\Program Files (x86)\Steam
 Locale = german
 ;-----------------------------------------------GENERAL
 Mode=0
-Mini=0
+Mini=1
 Fade=0
 Offset=0
 Header=0
 Arrows=0
 Search=0
 HalfTiles=1
-Settings=0
+Settings=1
 hiddenWindow=0
 FirstGame=-5
 SearchInput=Search by Name or ID
+SteamAPIKey=0
+SteamID=0
+SortMode=0
 ;------------------------------------------VISIBLETILES
-TilePixels=225
+TilePixels=215
 Half=0
-VisibleTiles=5.5
-VisibleTilesL=7
+VisibleTiles=8.5
+VisibleTilesL=10
 VisibleTilesS=5
-GapBetweenTiles=10
+GapBetweenTiles=8
 ;---------------------------------------------FADE&SIZE
 fadeMode=ON
 FadeSize=#TilePixels#/2
@@ -34,8 +37,8 @@ DOWN=1
 START=0
 Container=1
 ;------------------------------------------SKINPOSITION
-SkinPosX=-1736
-SkinPosY=407
+SkinPosX=3840
+SkinPosY=1651
 XPLUS=0
 ;----------------------------------------------LOGOSIZE
 LogoSize=16
