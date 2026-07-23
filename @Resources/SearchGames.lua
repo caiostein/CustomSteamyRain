@@ -3,45 +3,71 @@ local gamesInfo = {}
 local gameIDs = {}
 local nonSteamGames = {}
 
-function Update()
-    -- Set Variables
-    searchInput = SKIN:GetVariable("SearchInput")
+function Initialize()
     scriptPath = SKIN:GetVariable("@")
     gamesInfoPath = scriptPath .. "GamesInfo.inc"
     nonSteamGamesPath = scriptPath .. "NonSteamGames.inc"
 
-    -- Populate Tables
-    if not next(gameIDs) then
-        gameIDs, _, _ = ReadGameInfo(gamesInfoPath)
-    end
-    if not next(gamesInfo) then
-        _, gamesInfo, _ = ReadGameInfo(gamesInfoPath)
-    end
-    if not next(nonSteamGames) then
-        _, _, nonSteamGames = ReadGameInfo(nonSteamGamesPath)
-    end
-    
-    -- Match based on ID or Name
-    local result = nil
-    if tonumber(searchInput) then
-        result = GetGameInfoByID(searchInput)
-    else
-        result = GetGameInfoByName(searchInput)
-    end
-    
-    -- Update Rainmeter skin based on the result
-    if result then
-        SKIN:Bang('!SetVariable', 'SearchResults', result)
-        SKIN:Bang('!UpdateMeter', 'BG')
-        SKIN:Bang('!UpdateMeasure', 'Lenght')
-        SKIN:Bang('!ReDraw')
-    else
-        SKIN:Bang('!ShowMeter', 'MatchText')
-        SKIN:Bang('!ReDraw')
-    end
+    gameIDs, _, _ = ReadGameInfo(gamesInfoPath)
+    _, gamesInfo, _ = ReadGameInfo(gamesInfoPath)
+    _, _, nonSteamGames = ReadGameInfo(nonSteamGamesPath)
 end
 
--- Function to read game information from a file into tables
+function FilterMainList()
+    -- Se as tabelas estiverem vazias, recarrega
+    if not next(gameIDs) then Initialize() end
+
+    -- Lê a variável salva pelo INI (Evita crash com espaços ou aspas)
+    local searchInput = SKIN:GetVariable("SearchInput", "")
+    
+    -- Verifica se a busca foi apagada
+    local isSearchEmpty = (searchInput == nil or searchInput == "" or searchInput == "Search by Name or ID")
+    local normalizedInput = NormalizeString(searchInput)
+
+    -- 1. Filtragem dos Jogos da Steam (Meters nativos da lista: Game1, Game2...)
+    for id, name in pairs(gamesInfo) do
+        if isSearchEmpty then
+            SKIN:Bang('!ShowMeter', 'Game' .. id)
+            SKIN:Bang('!ShowMeter', 'Vis' .. id)
+        else
+            local normalizedName = NormalizeString(name)
+            
+            if (gameIDs[id] == searchInput) or StringContains(normalizedName, normalizedInput) then
+                SKIN:Bang('!ShowMeter', 'Game' .. id)
+                SKIN:Bang('!ShowMeter', 'Vis' .. id)
+            else
+                SKIN:Bang('!HideMeter', 'Game' .. id)
+                SKIN:Bang('!HideMeter', 'Vis' .. id)
+            end
+        end
+    end
+
+    -- 2. Filtragem dos Jogos Non-Steam (Meters nativos da lista: Egame1, Egame2...)
+    for egame, gameValue in pairs(nonSteamGames) do
+        if isSearchEmpty then
+            SKIN:Bang('!ShowMeter', 'Egame' .. egame)
+            SKIN:Bang('!ShowMeter', 'EVis' .. egame)
+        else
+            local normalizedName = NormalizeString(gameValue)
+            
+            if StringContains(normalizedName, normalizedInput) then
+                SKIN:Bang('!ShowMeter', 'Egame' .. egame)
+                SKIN:Bang('!ShowMeter', 'EVis' .. egame)
+            else
+                SKIN:Bang('!HideMeter', 'Egame' .. egame)
+                SKIN:Bang('!HideMeter', 'EVis' .. egame)
+            end
+        end
+    end
+
+    -- Atualiza toda a área da lista e as medidas de scroll
+    SKIN:Bang('!UpdateMeterGroup', 'Games')
+    SKIN:Bang('!UpdateMeasure', 'Lenght')
+    SKIN:Bang('!UpdateMeasure', 'ContainerSize')
+    SKIN:Bang('!ReDraw')
+end
+
+-- Função original para ler os arquivos .inc
 function ReadGameInfo(filePath)
     local gamesInfoTable = {}
     local gameIDsTable = {}
@@ -49,8 +75,7 @@ function ReadGameInfo(filePath)
 
     local file, err = io.open(filePath, "r")
     if not file then
-        print("Error opening file:", err)
-        return gamesInfoTable, nonSteamGamesTable
+        return gameIDsTable, gamesInfoTable, nonSteamGamesTable
     end
 
     for line in file:lines() do
@@ -70,65 +95,14 @@ function ReadGameInfo(filePath)
     return gameIDsTable, gamesInfoTable, nonSteamGamesTable
 end
 
--- Function to get game information by ID
-function GetGameInfoByID(gameID)
-    for i, ID in pairs(gameIDs) do
-        if ID == gameID then
-            SKIN:Bang('!ShowMeterGroup', 'G' .. i)
-            gameCount = gameCount + 1
-            result = gameCount
-            return result
-        end
-    end
-end
-
-function GetGameInfoByName(gameName)
-    local gameCount = 0
-    local result = nil
-
-    for id, name in pairs(gamesInfo) do
-        local normalizedSkinName = NormalizeString(gameName)
-        local normalizedFileName = NormalizeString(name)
-        if StringContains(normalizedFileName, normalizedSkinName) then
-            SKIN:Bang('!ShowMeterGroup', 'G' .. id)
-            gameCount = gameCount + 1
-        end
-    end
-    for egame, gameValue in pairs(nonSteamGames) do
-        local normalizedSkinName = NormalizeString(gameName)
-        local normalizedFileName = NormalizeString(gameValue)
-        if StringContains(normalizedFileName, normalizedSkinName) then
-            SKIN:Bang('!ShowMeterGroup', 'EG' .. egame)
-            gameCount = gameCount + 1
-        end
-    end
-    if gameCount > 0 then
-        result = gameCount
-        return result
-    end
-end
-
--- Function to find Str in Str
+-- Funcões de verificação originais
 function StringContains(str, substr)
     return string.find(str, substr, 1, true) ~= nil
 end
 
--- Helper function to normalize a string (remove spaces and special characters)
 function NormalizeString(inputString)
     if type(inputString) == "number" then
         inputString = tostring(inputString)
     end
     return inputString:gsub("[%s%p]", ""):lower()
-end
-
--- Function to read file
-function ReadFileContent(filePath)
-    local file, err = io.open(filePath, "r")
-    if not file then
-        print("Error opening file:", err)
-        return nil
-    end
-    local content = file:read("*all")
-    file:close()
-    return content
 end
