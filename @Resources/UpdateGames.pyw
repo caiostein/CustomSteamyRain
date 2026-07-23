@@ -285,27 +285,37 @@ for game_dir in game_dirs:
 
 # 3: Fetch API Data and Sort Games based on Sort Mode
 sort_mode = variables.get('sortmode', '0')
-api_key = variables.get('steamapikey', '')
-steam_id = variables.get('steamid', '')
+api_key = variables.get('steamapikey', '').strip()
+steam_id = variables.get('steamid', '').strip()
 
-if sort_mode != '0' and api_key and steam_id:
-    status = "Fetching Steam API Data..."
-    update_rainmeter_status(status)
-    steam_games = get_steam_data(api_key, steam_id)
-    
-    steam_map = {str(g['appid']): {'playtime': g.get('playtime_forever', 0), 'last_played': g.get('rtime_last_played', 0)} for g in steam_games}
+if sort_mode != '0':
+    if api_key in ('', '0') or steam_id in ('', '0'):
+        # Se escolheu ordenar mas faltam credenciais: Pula a API e reverte a UI
+        status = "API Info missing. Default sorting..."
+        update_rainmeter_status(status)
+        
+        # Pega o caminho absoluto do SkinInfo.inc e reseta a variável para 0
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        skin_info_path = os.path.join(script_dir, 'SkinInfo.inc')
+        subprocess.call([RainmeterPath, '!WriteKeyValue', 'Variables', 'SortMode', '0', skin_info_path])
+    else:
+        status = "Fetching Steam API Data..."
+        update_rainmeter_status(status)
+        steam_games = get_steam_data(api_key, steam_id)
+        
+        steam_map = {str(g['appid']): {'playtime': g.get('playtime_forever', 0), 'last_played': g.get('rtime_last_played', 0)} for g in steam_games}
 
-    for game in games_info:
-        data = steam_map.get(game['appid'], {'playtime': 0, 'last_played': 0})
-        game['playtime'] = data['playtime']
-        game['last_played'] = data['last_played']
+        for game in games_info:
+            data = steam_map.get(game['appid'], {'playtime': 0, 'last_played': 0})
+            game['playtime'] = data['playtime']
+            game['last_played'] = data['last_played']
 
-    if sort_mode == '1': # Playtime
-        games_info.sort(key=lambda x: x.get('playtime', 0), reverse=True)
-        processed_ids = [g['appid'] for g in games_info]
-    elif sort_mode == '2': # Last Played
-        games_info.sort(key=lambda x: x.get('last_played', 0), reverse=True)
-        processed_ids = [g['appid'] for g in games_info]
+        if sort_mode == '1': # Playtime
+            games_info.sort(key=lambda x: x.get('playtime', 0), reverse=True)
+            processed_ids = [g['appid'] for g in games_info]
+        elif sort_mode == '2': # Last Played
+            games_info.sort(key=lambda x: x.get('last_played', 0), reverse=True)
+            processed_ids = [g['appid'] for g in games_info]
 
 # 4: Write new GamesInfo.inc
 status = "Writing new GamesInfo.inc..."

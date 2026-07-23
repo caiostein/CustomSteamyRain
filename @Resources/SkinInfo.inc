@@ -13,10 +13,10 @@ Header=0
 Arrows=0
 Search=0
 HalfTiles=1
-Settings=1
+Settings=0
 hiddenWindow=0
 FirstGame=-5
-SearchInput=Search by Name or ID
+SearchInput=
 SteamAPIKey=0
 SteamID=0
 SortMode=0
@@ -38,7 +38,7 @@ START=0
 Container=1
 ;------------------------------------------SKINPOSITION
 SkinPosX=3840
-SkinPosY=1651
+SkinPosY=1119
 XPLUS=0
 ;----------------------------------------------LOGOSIZE
 LogoSize=16
