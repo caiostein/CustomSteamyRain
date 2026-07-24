@@ -95,12 +95,26 @@ def create_meter(id_key, index, image, image_path, search, is_hidden, is_extra=F
                     f'#Vis{index}#' if not is_hidden and not is_extra else
                     f'#{id_key}Vis#')
 
+    if is_extra:
+        # Pega o valor real da imagem salvo no seu NonSteamGames.inc
+        custom_img_val = config_extra_games.get('Variables', f'{id_key}Image', fallback='').replace('"', '')
+        
+        # Se for um caminho absoluto ou terminar com extensao de imagem, usa o que voce digitou
+        if ":\\" in custom_img_val or ":/" in custom_img_val or custom_img_val.lower().endswith(('.jpg', '.png', '.jpeg')):
+            extra_image_path = custom_img_val
+        else:
+            # Se for so um nome genérico, mantém a lógica de pastas padrao da skin ('ELogo' ou 'EIcon')
+            extra_image_path = f'#@#img\\E{image}\\{extra_index:03d}.jpg'
+    else:
+        extra_image_path = ""
+
     meter_data = {
         'Name': {
             'Meter': 'String',
             'Text': f'#{id_key}name#' if not is_extra else f'#{id_key}#',
-            'LeftMouseUpAction': f'[steam://rungameid/#{id_key}#]' if not is_extra else f'[#{id_key}Path#]',
-            'RightMouseUpAction': f'[steam://store/#{id_key}#]' if not is_extra else '[]',
+            # Adicionado aspas duplas em volta da variável do path para extras
+            'LeftMouseUpAction': f'[steam://rungameid/#{id_key}#]' if not is_extra else f'["#{id_key}Path#"]',
+            'RightMouseUpAction': f'[steam://store/#{id_key}#]' if not is_extra else '[!ActivateConfig "SteamyRain\\ExtraManager" "Manager.ini"]',
             'MeterStyle': 'NameStyle',
             'Hidden': f'{HiddenValue}',
             'Group': f'Games | {section_prefix}G{index}',
@@ -108,9 +122,10 @@ def create_meter(id_key, index, image, image_path, search, is_hidden, is_extra=F
         'Image': {
             'Meter': 'Image',
             'MeterStyle': 'GameStyle',
-            'ImageName': f'{image_path}\\#{id_key}#\\{get_image_for_game(image_path, id_key) if image == "Logo" else "icon.jpg"}' if not is_extra else f'#@#img\\E{image}\\{extra_index:03d}.jpg',
-            'LeftMouseUpAction': f'[steam://rungameid/#{id_key}#]' if not is_extra else f'[#{id_key}Path#]',
-            'RightMouseUpAction': f'[steam://store/#{id_key}#]' if not is_extra else '[]',
+            'ImageName': f'{image_path}\\#{id_key}#\\{get_image_for_game(image_path, id_key) if image == "Logo" else "icon.jpg"}' if not is_extra else extra_image_path,
+            # Adicionado aspas duplas em volta da variável do path para extras
+            'LeftMouseUpAction': f'[steam://rungameid/#{id_key}#]' if not is_extra else f'["#{id_key}Path#"]',
+            'RightMouseUpAction': f'[steam://store/#{id_key}#]' if not is_extra else '[!ActivateConfig "SteamyRain\\ExtraManager" "Manager.ini"]',
             'Hidden': f'{HiddenValue}',
             'Group': f'Games | {section_prefix}G{index}',
         },
@@ -186,29 +201,42 @@ def write_meters(output, image, image_path, search, hidden_games):
     os.makedirs(subfolder_path, exist_ok=True)
     config_combined = CaseSensitiveConfigParser()
 
-    # Loop through each regular game ID and create meters
-    for i in range(1, game_count + 1):
-        id_key = f'ID{i}'
-        is_hidden = hidden_games
-        meter_data = create_meter(id_key, i, image, image_path, search, is_hidden)
-        if search or hidden_games:
-            config_combined[f'Name{i}'] = meter_data['Name']
-        config_combined[f'Game{i}'] = meter_data['Image']
-        if not search:
-            config_combined[f'Vis{i}'] = meter_data['String']
-        config_combined[f'Gap{i}'] = meter_data['Gap']
+    # Le a variavel dinamica correta carregada globalmente pelo script
+    non_steam_first = variables.get('nonsteamfirst', '0') == '1'
 
-    # Loop through each extra game and create meters
-    for i in range(1, extra_games_count + 1):
-        id_key = f'Egame{i}'
-        is_hidden = hidden_games
-        meter_data = create_meter(id_key, i, image, image_path, search, is_hidden, is_extra=True, extra_index=i)
-        if search or hidden_games:
-            config_combined[f'EName{i}'] = meter_data['Name']
-        config_combined[f'EGame{i}'] = meter_data['Image']
-        if not search:
-            config_combined[f'EVis{i}'] = meter_data['String']
-        config_combined[f'EGap{i}'] = meter_data['Gap']
+    def add_steam_games():
+        # Loop through each regular game ID and create meters
+        for i in range(1, game_count + 1):
+            id_key = f'ID{i}'
+            is_hidden = hidden_games
+            meter_data = create_meter(id_key, i, image, image_path, search, is_hidden)
+            if search or hidden_games:
+                config_combined[f'Name{i}'] = meter_data['Name']
+            config_combined[f'Game{i}'] = meter_data['Image']
+            if not search:
+                config_combined[f'Vis{i}'] = meter_data['String']
+            config_combined[f'Gap{i}'] = meter_data['Gap']
+
+    def add_extra_games():
+        # Loop through each extra game and create meters
+        for i in range(1, extra_games_count + 1):
+            id_key = f'Egame{i}'
+            is_hidden = hidden_games
+            meter_data = create_meter(id_key, i, image, image_path, search, is_hidden, is_extra=True, extra_index=i)
+            if search or hidden_games:
+                config_combined[f'EName{i}'] = meter_data['Name']
+            config_combined[f'EGame{i}'] = meter_data['Image']
+            if not search:
+                config_combined[f'EVis{i}'] = meter_data['String']
+            config_combined[f'EGap{i}'] = meter_data['Gap']
+
+    # A magica da ordenacao acontece aqui e usa a logica linear do Rainmeter
+    if non_steam_first:
+        add_extra_games()
+        add_steam_games()
+    else:
+        add_steam_games()
+        add_extra_games()
 
     # Write meters to a single file
     output_name = 'dynamicSearchMeters' if search else 'dynamicMeters' if output == 1 else ('dynamicListMeters' if output == 2 and not hidden_games else 'dynamicHiddenMeters')
@@ -327,9 +355,13 @@ write_game_info(processed_ids, games_info)
 # 5: Set variables for meters creation
 game_count = len(processed_ids)
 config_extra_games = CaseSensitiveConfigParser()
-config_extra_games.read('NonSteamGames.inc', encoding='utf-8')
+
+# Corrige o caminho para encontrar o arquivo garantindo o diretorio absoluto
+script_dir = os.path.dirname(os.path.abspath(__file__))
+nonsteam_path = os.path.join(script_dir, 'NonSteamGames.inc')
+
+config_extra_games.read(nonsteam_path, encoding='utf-8')
 extra_games_count = int(config_extra_games.get('Variables', 'ExtraGamesCount', fallback='0'))
-#extra_games_count = int(config_extra_games['Variables']['ExtraGamesCount'])
 
 # 6: Create meters dynamically
 status = "Creating Dynamic Meters Files..."

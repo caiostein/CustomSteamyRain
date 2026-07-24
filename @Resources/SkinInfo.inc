@@ -62,3 +62,4 @@ InputBG=35,37,42
 CloseBG=226,42,39
 SettingsHover=26,159,255
 Opacity=255
+NonSteamFirst=0
