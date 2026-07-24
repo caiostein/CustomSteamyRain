@@ -20,7 +20,7 @@ W=150
 
 [BGQuickSettings]
 Meter=Shape
-Shape=Rectangle (#TilePixels#-166),20,156,72 | Fill Color #Dark1# | StrokeWidth 0
+Shape=Rectangle (#TilePixels#-166),20,156,92 | Fill Color #Dark1# | StrokeWidth 0
 Hidden=1
 DynamicVariables=1
 Group=QuickSettings
@@ -106,4 +106,22 @@ Hidden=1
 X=150r
 Y=3r
 
+[HelpoptionText]
+Meter=String
+Text="Help"
+LeftMouseUpAction=[!WriteKeyValue Variables SkinPosX "#CURRENTCONFIGX#" "#@#SkinInfo.inc"][!WriteKeyValue Variables SkinPosY "#CURRENTCONFIGY#" "#@#SkinInfo.inc"][!ActivateConfig "SteamyRain\Help" "Help.ini"][!HideMeterGroup QuickSettings]
+MouseOverAction=[!SetOption HelpoptionText SolidColor #Dark1#][!UpdateMeter HelpoptionText][!ReDraw]
+MouseLeaveAction=[!SetOption HelpoptionText SolidColor #TextBG#][!UpdateMeter HelpoptionText][!ReDraw]
+MeterStyle=TextStyle
+X=-150r
+Y=20r
 
+[Helpoption]
+Meter=String
+Text="[\xe897]"
+StringAlign=Right
+MeterStyle=ButtonStyle
+Group=QuickSettings
+Hidden=1
+X=150r
+Y=3r
